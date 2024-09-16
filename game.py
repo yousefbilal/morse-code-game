@@ -71,10 +71,12 @@ class Game:
         self.__ser = serial.Serial(serial_port, 115200, timeout=0.1)
 
         pygame.init()
-        self.__screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+        self.__screen = pygame.display.set_mode(
+            (self.WIDTH, self.HEIGHT), pygame.RESIZABLE
+        )
         pygame.display.set_caption("Morse Code Game")
         self.__font = pygame.font.Font(None, 32)
-        self.__big_font = pygame.font.Font(None, 128)
+        self.__big_font = pygame.font.Font(None, 92)
         self.__button_font = pygame.font.Font(None, 48)
         self.__title_font = pygame.font.Font(None, 64)
         self.__game_over_font = pygame.font.Font(None, 56)
@@ -109,8 +111,8 @@ class Game:
         surf = font.render(text, True, color)
         rect = surf.get_rect(
             center=(
-                (Game.WIDTH // 2) if not x else x,
-                (Game.HEIGHT // 2) if not y else y,
+                (self.__screen.get_width() // 2) if not x else x,
+                (self.__screen.get_height() // 2) if not y else y,
             )
         )
         self.__screen.blit(surf, rect)
@@ -153,14 +155,32 @@ class Game:
 
         # Display lives
         for i in range(self.lives):
-            pygame.gfxdraw.aacircle(self.__screen, 700 + i * 35, 40, 15, Game.RED)
-            pygame.gfxdraw.filled_circle(self.__screen, 700 + i * 35, 40, 15, Game.RED)
+            pygame.gfxdraw.aacircle(
+                self.__screen,
+                self.__screen.get_width() - 100 + i * 35,
+                40,
+                15,
+                Game.RED,
+            )
+            pygame.gfxdraw.filled_circle(
+                self.__screen,
+                self.__screen.get_width() - 100 + i * 35,
+                40,
+                15,
+                Game.RED,
+            )
 
         # Display current symbol
         self.__display_center(self.current_symbol, self.__big_font)
 
         # Display restart button
-        self.restart_button = self.__display_button("Restart", 650, 520, 125, 50)
+        self.restart_button = self.__display_button(
+            "Restart",
+            self.__screen.get_width() - 150,
+            self.__screen.get_height() - 80,
+            125,
+            50,
+        )
 
         pygame.display.flip()
 
@@ -177,7 +197,13 @@ class Game:
         self.__display_center(
             f"The word was: {self.target_word}", self.__font, Game.WHITE, y=300
         )
-        self.restart_button = self.__display_button("Play Again", 300, 400, 200, 60)
+        self.restart_button = self.__display_button(
+            "Play Again",
+            self.__screen.get_width() // 2 - 100,
+            self.__screen.get_height() // 2 + 100,
+            200,
+            60,
+        )
         pygame.display.flip()
 
     def __receive_from_esp32(self) -> str | None:
@@ -206,7 +232,7 @@ class Game:
             if self.received_morse and not self.received_morse.endswith("  ")
             else ""
         )
-        self.current_symbol = "Word Space"
+        self.current_symbol = "Word Pause"
         self.received_message += (
             " "
             if self.received_message and not self.received_message.endswith(" ")
@@ -217,14 +243,14 @@ class Game:
         self.received_morse += (
             " " if self.received_morse and not self.received_morse.endswith(" ") else ""
         )
-        self.current_symbol = "Letter Space"
-        char = Game.__morse_to_char(self.current_morse_code)
-        self.current_morse_code = ""
-        if char:
-            if self.__check_letter_match(char):
-                self.received_message += char
+        self.current_symbol = "Letter Pause"
+        if self.current_morse_code.strip():
+            char = Game.__morse_to_char(self.current_morse_code)
+            self.current_morse_code = ""
+            if not char or not self.__check_letter_match(char):
+                self.lives -= 1
                 return
-            self.lives -= 1
+            self.received_message += char
 
     def __handle_morse_symbol(self, symbol: str) -> None:
         self.received_morse += symbol
